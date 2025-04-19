@@ -113,7 +113,6 @@ def preprocess_input(features_dict):
     
     # Use get_dummies for one-hot encoding
     df = pd.get_dummies(df)
-    df = df.astype(int)
     
     # Expected columns in the exact order
     expected_columns = [
