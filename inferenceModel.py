@@ -1,0 +1,209 @@
+import streamlit as st
+import pickle
+import numpy as np
+import pandas as pd
+import xgboost as xgb
+
+# Set page configuration
+st.set_page_config(
+    page_title="Loan Default Prediction",
+    page_icon="💰",
+    layout="wide"
+)
+
+# Load the XGBoost model
+@st.cache_resource
+def load_model():
+    with open('xgboost_model.pkl', 'rb') as file:
+        model = pickle.load(file)
+    return model
+
+try:
+    model = load_model()
+except Exception as e:
+    st.error(f"Error loading model: {e}")
+    model = None
+
+# Define numerical ranges based on your dataset statistics
+FEATURE_RANGES = {
+    'person_age': (20, 144, 28),
+    'person_income': (8000, 150000, 80000),
+    'person_emp_exp': (0, 125, 5),
+    'loan_amnt': (500, 35000, 10000),
+    'loan_int_rate': (5.42, 20.00, 11.00),
+    'loan_percent_income': (0.0, 0.66, 0.14),
+    'cb_person_cred_hist_length': (2, 30, 6),
+    'credit_score': (390, 850, 630)
+}
+
+def main():
+    st.title('💰 Loan Default Prediction')
+    st.write("""
+    This application predicts the likelihood of a loan default based on various borrower characteristics.
+    Fill in the information below to get a prediction.
+    """)
+    
+    # Create columns for better layout
+    col1, col2 = st.columns(2)
+    
+    # Store all input features
+    features = {}
+    
+    with col1:
+        st.subheader("Personal Information")
+        
+        # Numeric inputs with sliders
+        features['person_age'] = st.slider("Age", 
+                                          min_value=FEATURE_RANGES['person_age'][0], 
+                                          max_value=FEATURE_RANGES['person_age'][1], 
+                                          value=FEATURE_RANGES['person_age'][2])
+        
+        features['person_income'] = st.slider("Annual Income ($)", 
+                                             min_value=FEATURE_RANGES['person_income'][0], 
+                                             max_value=FEATURE_RANGES['person_income'][1], 
+                                             value=FEATURE_RANGES['person_income'][2],
+                                             step=1000)
+        
+        features['person_emp_exp'] = st.slider("Employment Experience (years)", 
+                                             min_value=FEATURE_RANGES['person_emp_exp'][0], 
+                                             max_value=FEATURE_RANGES['person_emp_exp'][1], 
+                                             value=FEATURE_RANGES['person_emp_exp'][2])
+        
+        # Categorical inputs with radio or selectbox
+        features['person_gender'] = st.radio("Gender", ['male', 'female'])
+        
+        features['person_education'] = st.selectbox("Education", 
+                                                   ['High School', 'Bachelor', 'Associate', 'Master', 'Doctorate'])
+        
+        features['person_home_ownership'] = st.selectbox("Home Ownership", 
+                                                       ['RENT', 'MORTGAGE', 'OWN', 'OTHER'])
+        
+        features['cb_person_cred_hist_length'] = st.slider("Credit History Length (years)", 
+                                                         min_value=FEATURE_RANGES['cb_person_cred_hist_length'][0], 
+                                                         max_value=FEATURE_RANGES['cb_person_cred_hist_length'][1], 
+                                                         value=FEATURE_RANGES['cb_person_cred_hist_length'][2])
+        
+        features['credit_score'] = st.slider("Credit Score", 
+                                           min_value=FEATURE_RANGES['credit_score'][0], 
+                                           max_value=FEATURE_RANGES['credit_score'][1], 
+                                           value=FEATURE_RANGES['credit_score'][2],
+                                           step=10)
+
+    with col2:
+        st.subheader("Loan Information")
+        
+        features['loan_amnt'] = st.slider("Loan Amount ($)", 
+                                        min_value=FEATURE_RANGES['loan_amnt'][0], 
+                                        max_value=FEATURE_RANGES['loan_amnt'][1], 
+                                        value=FEATURE_RANGES['loan_amnt'][2],
+                                        step=500)
+        
+        features['loan_int_rate'] = st.slider("Interest Rate (%)", 
+                                           min_value=FEATURE_RANGES['loan_int_rate'][0], 
+                                           max_value=FEATURE_RANGES['loan_int_rate'][1], 
+                                           value=FEATURE_RANGES['loan_int_rate'][2],
+                                           step=0.05)
+        
+        features['loan_percent_income'] = st.slider("Loan Percent of Income", 
+                                                 min_value=FEATURE_RANGES['loan_percent_income'][0], 
+                                                 max_value=FEATURE_RANGES['loan_percent_income'][1], 
+                                                 value=FEATURE_RANGES['loan_percent_income'][2],
+                                                 step=0.01)
+        
+        features['loan_intent'] = st.selectbox("Loan Intent", 
+                                            ['EDUCATION', 'MEDICAL', 'VENTURE', 'PERSONAL', 'DEBTCONSOLIDATION', 'HOMEIMPROVEMENT'])
+        
+        features['previous_loan_defaults_on_file'] = st.radio("Previous Loan Defaults on File", ['Yes', 'No'])
+    
+    # Button to make prediction
+    if st.button('Predict Loan Default Risk'):
+        if model is not None:
+            result = make_prediction(features)
+            
+            # Display result with color
+            st.markdown("## Prediction Result")
+            if result == 0:
+                st.success("**Loan Default Risk: LOW**")
+                st.write("Based on the provided information, this applicant has a low risk of defaulting on the loan.")
+            else:
+                st.error("**Loan Default Risk: HIGH**")
+                st.write("Based on the provided information, this applicant has a high risk of defaulting on the loan.")
+                
+            # Add some explanation about key factors
+            st.markdown("### Key Risk Factors")
+            
+            # Engineering key ratios for display
+            debt_to_income = features['loan_amnt'] / features['person_income']
+            income_per_exp = features['person_income'] / (features['person_emp_exp'] + 1)
+            
+            # Show visualizations or key metrics
+            metric_col1, metric_col2, metric_col3 = st.columns(3)
+            with metric_col1:
+                st.metric("Debt-to-Income Ratio", f"{debt_to_income:.2f}")
+            with metric_col2:
+                st.metric("Income per Year of Experience", f"${income_per_exp:.2f}")
+            with metric_col3:
+                st.metric("Credit Score", features['credit_score'])
+                
+        else:
+            st.error("Model not loaded. Please check your model file.")
+
+def preprocess_input(features_dict):
+    """
+    Preprocess the input features to match the model's expected format
+    """
+    # Convert to DataFrame for easier manipulation
+    df = pd.DataFrame([features_dict])
+    
+    # Convert categorical variables: Yes/No to 1/0
+    if 'previous_loan_defaults_on_file' in df:
+        df['previous_loan_defaults_on_file'] = df['previous_loan_defaults_on_file'].map({'Yes': 'Yes', 'No': 'No'})
+    
+    # Create one-hot encodings for categorical variables
+    # This should match your training preprocessing
+    categorical_columns = ['person_gender', 'person_education', 'person_home_ownership', 
+                          'loan_intent', 'previous_loan_defaults_on_file']
+    df_encoded = pd.get_dummies(df, columns=categorical_columns, drop_first=False)
+    
+    # Add any missing columns that the model expects (based on training data)
+    # This is a placeholder - you would need to define expected_columns based on your model
+    # expected_columns = [...] # List of all columns your model expects
+    # for col in expected_columns:
+    #     if col not in df_encoded.columns:
+    #         df_encoded[col] = 0
+    
+    return df_encoded
+
+def make_prediction(features):
+    """
+    Use the loaded model to make a prediction
+    """
+    # Preprocess the features
+    processed_features = preprocess_input(features)
+    
+    # Make prediction
+    try:
+        prediction = model.predict(processed_features)[0]
+        return prediction
+    except Exception as e:
+        st.error(f"Error making prediction: {e}")
+        return None
+
+def show_info():
+    st.sidebar.header("About")
+    st.sidebar.info("""
+    This app uses an XGBoost machine learning model to predict loan default risk based on personal and loan information.
+    
+    The model was trained on historical loan data with features including age, income, education level, loan amount, and credit history.
+    """)
+    
+    st.sidebar.header("Features Used")
+    st.sidebar.markdown("""
+    - **Personal**: Age, Income, Gender, Education, Employment Experience, Home Ownership
+    - **Credit**: Credit Score, Credit History Length, Previous Defaults
+    - **Loan**: Amount, Interest Rate, Purpose, Percent of Income
+    """)
+
+if __name__ == '__main__':
+    main()
+    show_info()
