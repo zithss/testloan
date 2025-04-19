@@ -175,9 +175,9 @@ def preprocess_input(features_dict):
         'previous_loan_defaults_on_file'
     ]
     
-    # for col in expected_columns:
-    #     if col not in df_encoded.columns:
-    #         df_encoded[col] = 0
+    for col in expected_columns:
+        if col not in df.columns:
+            df[col] = 0
     
     # Ensure columns are in correct order
     df = df[expected_columns]
