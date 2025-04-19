@@ -73,7 +73,7 @@ def main():
         features['person_gender'] = st.radio("Gender", ['male', 'female'])
         
         features['person_education'] = st.selectbox("Education", 
-                                                   ['High School', 'Bachelor', 'Associate', 'Master', 'Doctorate'])
+                                                   ['High School', 'Associate', 'Bachelor', 'Master', 'Doctorate'])
         
         features['person_home_ownership'] = st.selectbox("Home Ownership", 
                                                        ['RENT', 'MORTGAGE', 'OWN', 'OTHER'])
