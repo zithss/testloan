@@ -161,7 +161,21 @@ def preprocess_input(features_dict):
     df = pd.DataFrame([features_dict])
     
     # One-hot encode categorical variables
-    df = pd.get_dummies(df)
+    # Handle gender
+    df['person_gender_female'] = (df['person_gender'] == 'female').astype(int)
+    df['person_gender_male'] = (df['person_gender'] == 'male').astype(int)
+    
+    # Handle home ownership
+    for category in ['MORTGAGE', 'OTHER', 'OWN', 'RENT']:
+        df[f'person_home_ownership_{category}'] = (df['person_home_ownership'] == category).astype(int)
+        
+    # Handle loan intent
+    for category in ['DEBTCONSOLIDATION', 'EDUCATION', 'HOMEIMPROVEMENT', 'MEDICAL', 'PERSONAL', 'VENTURE']:
+        df[f'loan_intent_{category}'] = (df['loan_intent'] == category).astype(int)
+        
+    # Handle previous loan defaults
+    df['previous_loan_defaults_on_file_No'] = (df['previous_loan_defaults'] == 'No').astype(int)
+    df['previous_loan_defaults_on_file_Yes'] = (df['previous_loan_defaults'] == 'Yes').astype(int)
     
     # Define the exact column order expected by the model
     expected_columns = [
