@@ -193,7 +193,7 @@ def main():
         
         # Display results
         if prediction is not None:
-            display_results(prediction, features)
+            display_results(prediction)
 
 if __name__ == '__main__':
     main()
