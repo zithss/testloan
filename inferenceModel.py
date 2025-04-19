@@ -154,30 +154,37 @@ def preprocess_input(features_dict):
     # Convert to DataFrame for easier manipulation
     df = pd.DataFrame([features_dict])
     
-    # Convert previous defaults to binary
-    df['previous_loan_defaults_on_file'] = df['previous_loan_defaults_on_file'].map({'Yes': 1, 'No': 0})
+    # Convert education to ordinal encoding (matches 'education_level' in model)
+    education_mapping = {
+        'High School': 0,
+        'Associate': 1,
+        'Bachelor': 2,
+        'Master': 3,
+        'Doctorate': 4
+    }
+    df['education_level'] = df['person_education'].map(education_mapping)
     
-    # Create one-hot encodings for categorical variables
-    categorical_columns = ['person_gender', 'person_education', 'person_home_ownership', 
-                          'loan_intent', 'previous_loan_defaults_on_file']
+    # Convert gender to binary (1=female, 0=male)
+    df['person_gender_female'] = (df['person_gender'] == 'female').astype(int)
+    
+    # Create one-hot encodings for other categorical variables
+    categorical_columns = ['person_home_ownership', 'loan_intent']
     df_encoded = pd.get_dummies(df, columns=categorical_columns, drop_first=False)
     
-    # Add any missing columns that the model expects
-    # IMPORTANT: Replace with your model's actual expected columns
+    # Add missing columns that the model expects
     expected_columns = [
         'person_age', 'person_income', 'person_emp_exp', 'loan_amnt',
         'loan_int_rate', 'loan_percent_income', 'cb_person_cred_hist_length',
-        'credit_score', 'person_gender_female', 'person_gender_male',
-        'person_education_Associate', 'person_education_Bachelor',
-        'person_education_Doctorate', 'person_education_High School',
-        'person_education_Master', 'person_home_ownership_MORTGAGE',
-        'person_home_ownership_OTHER', 'person_home_ownership_OWN',
-        'person_home_ownership_RENT', 'loan_intent_DEBTCONSOLIDATION',
-        'loan_intent_EDUCATION', 'loan_intent_HOMEIMPROVEMENT',
-        'loan_intent_MEDICAL', 'loan_intent_PERSONAL', 'loan_intent_VENTURE',
-        'previous_loan_defaults_on_file_0', 'previous_loan_defaults_on_file_1'
+        'credit_score', 'education_level', 'person_gender_female',
+        'person_home_ownership_MORTGAGE', 'person_home_ownership_OTHER',
+        'person_home_ownership_OWN', 'person_home_ownership_RENT',
+        'loan_intent_DEBTCONSOLIDATION', 'loan_intent_EDUCATION',
+        'loan_intent_HOMEIMPROVEMENT', 'loan_intent_MEDICAL',
+        'loan_intent_PERSONAL', 'loan_intent_VENTURE',
+        'previous_loan_defaults_on_file_No', 'previous_loan_defaults_on_file_Yes'
     ]
     
+    # Add missing columns with default value 0
     for col in expected_columns:
         if col not in df_encoded.columns:
             df_encoded[col] = 0
