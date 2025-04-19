@@ -180,7 +180,7 @@ def preprocess_input(features_dict):
     #         df_encoded[col] = 0
     
     # Ensure columns are in correct order
-    df_encoded = df_encoded[expected_columns]
+    df = df[expected_columns]
     
     return df
 
