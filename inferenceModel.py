@@ -128,7 +128,14 @@ def preprocess_input(features_dict):
         'previous_loan_defaults_on_file_Yes'
     ]
     
-    # df = df[expected_columns]
+    # Since the model was trained on a specific set of columns, we need to ensure that the input DataFrame has the same columns
+    # features will be 0 if not present in the input
+    for col in expected_columns:
+        if col not in df.columns:
+            df[col] = 0
+    
+    # Ensure columns are in correct order
+    df = df[expected_columns]
     
     return df
 
