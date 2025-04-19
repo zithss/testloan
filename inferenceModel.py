@@ -153,28 +153,24 @@ def preprocess_input(features_dict):
     # Convert to DataFrame for easier manipulation
     df = pd.DataFrame([features_dict])
     
-    # Convert previous defaults to binary
+    # Apply transformations to the DataFrame
     df['previous_loan_defaults_on_file'] = df['previous_loan_defaults_on_file'].map({'Yes': 1, 'No': 0})
+    df['education_level'] = df['person_education'].map({'High School': 1, 'Associate': 2, 'Bachelor': 3, 'Master': 4, 'Doctorate': 5})
     
     # Create one-hot encodings for categorical variables
-    categorical_columns = ['person_gender', 'person_education', 'person_home_ownership', 
+    categorical_columns = ['person_gender', 'person_home_ownership', 
                           'loan_intent', 'previous_loan_defaults_on_file']
     df_encoded = pd.get_dummies(df, columns=categorical_columns, drop_first=False)
     
-    # Add any missing columns that the model expects
-    # IMPORTANT: Replace with your model's actual expected columns
     expected_columns = [
         'person_age', 'person_income', 'person_emp_exp', 'loan_amnt',
         'loan_int_rate', 'loan_percent_income', 'cb_person_cred_hist_length',
-        'credit_score', 'person_gender_female', 'person_gender_male',
-        'person_education_Associate', 'person_education_Bachelor',
-        'person_education_Doctorate', 'person_education_High School',
-        'person_education_Master', 'person_home_ownership_MORTGAGE',
-        'person_home_ownership_OTHER', 'person_home_ownership_OWN',
-        'person_home_ownership_RENT', 'loan_intent_DEBTCONSOLIDATION',
-        'loan_intent_EDUCATION', 'loan_intent_HOMEIMPROVEMENT',
-        'loan_intent_MEDICAL', 'loan_intent_PERSONAL', 'loan_intent_VENTURE',
-        'previous_loan_defaults_on_file_0', 'previous_loan_defaults_on_file_1'
+        'credit_score', 'person_gender_male', 'person_gender_female', 
+        'person_education', 'person_home_ownership_RENT', 'person_home_ownership_MORTGAGE', 
+        'person_home_ownership_OWN', 'person_home_ownership_OTHER', 'loan_intent_EDUCATION', 
+        'loan_intent_MEDICAL', 'loan_intent_VENTURE', 'loan_intent_PERSONAL', 
+        'loan_intent_DEBTCONSOLIDATION', 'loan_intent_HOMEIMPROVEMENT', 
+        'previous_loan_defaults_on_file'
     ]
     
     for col in expected_columns:
