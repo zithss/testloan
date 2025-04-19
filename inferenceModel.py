@@ -111,9 +111,6 @@ def collect_user_input():
 def preprocess_input(features_dict):
     df = pd.DataFrame([features_dict])
     
-    # Extract and rename any special columns before one-hot encoding
-    education_level = df['education_level']
-    
     # Use get_dummies for one-hot encoding
     df = pd.get_dummies(df)
     
@@ -131,12 +128,7 @@ def preprocess_input(features_dict):
         'previous_loan_defaults_on_file_Yes'
     ]
     
-    # Ensure all expected columns exist
-    for col in expected_columns:
-        if col not in df.columns:
-            df[col] = 0
-    
-    return df
+    return df[expected_columns]
 
 # Prediction function
 def make_prediction(model, features):
