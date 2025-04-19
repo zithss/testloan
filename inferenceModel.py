@@ -128,7 +128,9 @@ def preprocess_input(features_dict):
         'previous_loan_defaults_on_file_Yes'
     ]
     
-    return df[expected_columns]
+    df = df[expected_columns]
+    
+    return df
 
 # Prediction function
 def make_prediction(model, features):
