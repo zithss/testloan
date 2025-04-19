@@ -114,15 +114,8 @@ def preprocess_input(features_dict):
     # Extract and rename any special columns before one-hot encoding
     education_level = df['education_level']
     
-    # Get categorical columns that need one-hot encoding
-    categorical_columns = ['person_gender', 'person_home_ownership', 'loan_intent', 'previous_loan_defaults_on_file']
-    
     # Use get_dummies for one-hot encoding
-    df_encoded = pd.get_dummies(df)
-    
-    # Drop original categorical columns and add one-hot encoded columns
-    df = df.drop(categorical_columns, axis=1)
-    df = pd.concat([df, df_encoded], axis=1)
+    df = pd.get_dummies(df)
     
     # Expected columns in the exact order
     expected_columns = [
@@ -143,7 +136,7 @@ def preprocess_input(features_dict):
         if col not in df.columns:
             df[col] = 0
     
-    return df[expected_columns]
+    return df
 
 # Prediction function
 def make_prediction(model, features):
