@@ -6,8 +6,8 @@ import xgboost as xgb
 
 # Set page configuration
 st.set_page_config(
-    page_title="Loan Default Prediction",
-    page_icon="💰",
+    page_title="Loan Approval Prediction",
+    page_icon="✅",
     layout="wide"
 )
 
@@ -37,9 +37,9 @@ FEATURE_RANGES = {
 }
 
 def main():
-    st.title('💰 Loan Default Prediction')
+    st.title('✅ Loan Approval Prediction')
     st.write("""
-    This application predicts the likelihood of a loan default based on various borrower characteristics.
+    This application predicts whether a loan will be approved based on various applicant characteristics.
     Fill in the information below to get a prediction.
     """)
     
@@ -52,7 +52,6 @@ def main():
     with col1:
         st.subheader("Personal Information")
         
-        # Numeric inputs with sliders
         features['person_age'] = st.slider("Age", 
                                           min_value=FEATURE_RANGES['person_age'][0], 
                                           max_value=FEATURE_RANGES['person_age'][1], 
@@ -69,7 +68,6 @@ def main():
                                              max_value=FEATURE_RANGES['person_emp_exp'][1], 
                                              value=FEATURE_RANGES['person_emp_exp'][2])
         
-        # Categorical inputs with radio or selectbox
         features['person_gender'] = st.radio("Gender", ['male', 'female'])
         
         features['person_education'] = st.selectbox("Education", 
@@ -112,25 +110,23 @@ def main():
         
         features['loan_intent'] = st.selectbox("Loan Intent", 
                                             ['EDUCATION', 'MEDICAL', 'VENTURE', 'PERSONAL', 'DEBTCONSOLIDATION', 'HOMEIMPROVEMENT'])
-        
-        features['previous_loan_defaults_on_file'] = st.radio("Previous Loan Defaults on File", ['Yes', 'No'])
-    
+
     # Button to make prediction
-    if st.button('Predict Loan Default Risk'):
+    if st.button('Predict Loan Approval'):
         if model is not None:
             result = make_prediction(features)
             
             # Display result with color
             st.markdown("## Prediction Result")
-            if result == 0:
-                st.success("**Loan Default Risk: LOW**")
-                st.write("Based on the provided information, this applicant has a low risk of defaulting on the loan.")
+            if result == 1:
+                st.success("**Loan Status: APPROVED**")
+                st.write("Based on the provided information, this applicant is likely to be approved for the loan.")
             else:
-                st.error("**Loan Default Risk: HIGH**")
-                st.write("Based on the provided information, this applicant has a high risk of defaulting on the loan.")
+                st.error("**Loan Status: NOT APPROVED**")
+                st.write("Based on the provided information, this applicant is unlikely to be approved for the loan.")
                 
             # Add some explanation about key factors
-            st.markdown("### Key Risk Factors")
+            st.markdown("### Key Decision Factors")
             
             # Engineering key ratios for display
             debt_to_income = features['loan_amnt'] / features['person_income']
@@ -155,22 +151,30 @@ def preprocess_input(features_dict):
     # Convert to DataFrame for easier manipulation
     df = pd.DataFrame([features_dict])
     
-    # Convert categorical variables: Yes/No to 1/0
-    if 'previous_loan_defaults_on_file' in df:
-        df['previous_loan_defaults_on_file'] = df['previous_loan_defaults_on_file'].map({'Yes': 'Yes', 'No': 'No'})
-    
     # Create one-hot encodings for categorical variables
-    # This should match your training preprocessing
-    categorical_columns = ['person_gender', 'person_education', 'person_home_ownership', 
-                          'loan_intent', 'previous_loan_defaults_on_file']
+    categorical_columns = ['person_gender', 'person_education', 'person_home_ownership', 'loan_intent']
     df_encoded = pd.get_dummies(df, columns=categorical_columns, drop_first=False)
     
-    # Add any missing columns that the model expects (based on training data)
-    # This is a placeholder - you would need to define expected_columns based on your model
-    # expected_columns = [...] # List of all columns your model expects
-    # for col in expected_columns:
-    #     if col not in df_encoded.columns:
-    #         df_encoded[col] = 0
+    # Add any missing columns that the model expects
+    expected_columns = [
+        'person_age', 'person_income', 'person_emp_exp', 'loan_amnt',
+        'loan_int_rate', 'loan_percent_income', 'cb_person_cred_hist_length',
+        'credit_score', 'person_gender_female', 'person_gender_male',
+        'person_education_Associate', 'person_education_Bachelor',
+        'person_education_Doctorate', 'person_education_High School',
+        'person_education_Master', 'person_home_ownership_MORTGAGE',
+        'person_home_ownership_OTHER', 'person_home_ownership_OWN',
+        'person_home_ownership_RENT', 'loan_intent_DEBTCONSOLIDATION',
+        'loan_intent_EDUCATION', 'loan_intent_HOMEIMPROVEMENT',
+        'loan_intent_MEDICAL', 'loan_intent_PERSONAL', 'loan_intent_VENTURE'
+    ]
+    
+    for col in expected_columns:
+        if col not in df_encoded.columns:
+            df_encoded[col] = 0
+    
+    # Ensure columns are in correct order
+    df_encoded = df_encoded[expected_columns]
     
     return df_encoded
 
@@ -192,15 +196,15 @@ def make_prediction(features):
 def show_info():
     st.sidebar.header("About")
     st.sidebar.info("""
-    This app uses an XGBoost machine learning model to predict loan default risk based on personal and loan information.
+    This app uses an XGBoost machine learning model to predict loan approval status based on applicant information.
     
-    The model was trained on historical loan data with features including age, income, education level, loan amount, and credit history.
+    The model was trained on historical loan data with features including age, income, education level, credit history, and loan details.
     """)
     
-    st.sidebar.header("Features Used")
+    st.sidebar.header("Key Features")
     st.sidebar.markdown("""
     - **Personal**: Age, Income, Gender, Education, Employment Experience, Home Ownership
-    - **Credit**: Credit Score, Credit History Length, Previous Defaults
+    - **Credit**: Credit Score, Credit History Length
     - **Loan**: Amount, Interest Rate, Purpose, Percent of Income
     """)
 
