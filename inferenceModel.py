@@ -158,9 +158,11 @@ def preprocess_input(features_dict):
     df['education_level'] = df['person_education'].map({'High School': 1, 'Associate': 2, 'Bachelor': 3, 'Master': 4, 'Doctorate': 5})
     
     # Create one-hot encodings for categorical variables
-    categorical_columns = ['person_gender', 'person_home_ownership', 
-                          'loan_intent', 'previous_loan_defaults_on_file']
-    df_encoded = pd.get_dummies(df, columns=categorical_columns, drop_first=False)
+    # categorical_columns = ['person_gender', 'person_home_ownership', 
+    #                       'loan_intent', 'previous_loan_defaults_on_file']
+    # df_encoded = pd.get_dummies(df, columns=categorical_columns, drop_first=False)
+    
+    df = pd.get_dummies(df)
     
     expected_columns = [
         'person_age', 'person_income', 'person_emp_exp', 'loan_amnt',
@@ -173,14 +175,14 @@ def preprocess_input(features_dict):
         'previous_loan_defaults_on_file'
     ]
     
-    for col in expected_columns:
-        if col not in df_encoded.columns:
-            df_encoded[col] = 0
+    # for col in expected_columns:
+    #     if col not in df_encoded.columns:
+    #         df_encoded[col] = 0
     
     # Ensure columns are in correct order
     df_encoded = df_encoded[expected_columns]
     
-    return df_encoded
+    return df
 
 def make_prediction(features):
     """
