@@ -35,6 +35,9 @@ FEATURE_RANGES = {
     'credit_score': (390, 850)
 }
 
+# Define the exact education mapping used during training
+EDUCATION_ORDER = {'High School': 1, 'Associate': 2, 'Bachelor': 3, 'Master': 4, 'Doctorate': 5}
+
 def main():
     st.title('✅ Loan Approval Prediction')
     st.write("""
@@ -67,10 +70,13 @@ def main():
                                              max_value=FEATURE_RANGES['person_emp_exp'][1], 
                                              value=FEATURE_RANGES['person_emp_exp'][0])
         
-        features['person_gender'] = st.radio("Gender", ['male', 'female'])
+        # Gender as categorical for one-hot encoding
+        features['person_gender'] = st.radio("Gender", ['female', 'male'])
         
-        features['person_education'] = st.selectbox("Education", 
-                                                   ['High School', 'Associate', 'Bachelor', 'Master', 'Doctorate'])
+        # Education directly mapped to education_level numeric value
+        education = st.selectbox("Education", 
+                               list(EDUCATION_ORDER.keys()))
+        features['education_level'] = EDUCATION_ORDER[education]
         
         features['person_home_ownership'] = st.selectbox("Home Ownership", 
                                                        ['RENT', 'MORTGAGE', 'OWN', 'OTHER'])
@@ -110,8 +116,9 @@ def main():
         features['loan_intent'] = st.selectbox("Loan Intent", 
                                             ['EDUCATION', 'MEDICAL', 'VENTURE', 'PERSONAL', 'DEBTCONSOLIDATION', 'HOMEIMPROVEMENT'])
         
-        # Add previous defaults input
-        features['previous_loan_defaults_on_file'] = st.radio("Previous Loan Defaults", ['No', 'Yes'])
+        # Previous defaults as Yes/No for one-hot encoding
+        has_defaults = st.radio("Previous Loan Defaults", ['No', 'Yes'])
+        features['previous_loan_defaults'] = has_defaults  # Will be one-hot encoded later
 
     # Button to make prediction
     if st.button('Predict Loan Approval'):
@@ -148,41 +155,38 @@ def main():
 
 def preprocess_input(features_dict):
     """
-    Preprocess the input features to match the model's expected format
+    Preprocess the input features to match the model's expected format exactly
     """
     # Convert to DataFrame for easier manipulation
     df = pd.DataFrame([features_dict])
     
-    # Apply transformations to the DataFrame
-    df['previous_loan_defaults_on_file'] = df['previous_loan_defaults_on_file'].map({'Yes': 1, 'No': 0})
-    df['education_level'] = df['person_education'].map({'High School': 1, 'Associate': 2, 'Bachelor': 3, 'Master': 4, 'Doctorate': 5})
-    
-    # Create one-hot encodings for categorical variables
-    # categorical_columns = ['person_gender', 'person_home_ownership', 
-    #                       'loan_intent', 'previous_loan_defaults_on_file']
-    # df_encoded = pd.get_dummies(df, columns=categorical_columns, drop_first=False)
-    
+    # One-hot encode categorical variables
     df = pd.get_dummies(df)
     
+    # Define the exact column order expected by the model
     expected_columns = [
         'person_age', 'person_income', 'person_emp_exp', 'loan_amnt',
         'loan_int_rate', 'loan_percent_income', 'cb_person_cred_hist_length',
-        'credit_score', 'person_gender_male', 'person_gender_female', 
-        'person_education', 'person_home_ownership_RENT', 'person_home_ownership_MORTGAGE', 
-        'person_home_ownership_OWN', 'person_home_ownership_OTHER', 'loan_intent_EDUCATION', 
-        'loan_intent_MEDICAL', 'loan_intent_VENTURE', 'loan_intent_PERSONAL', 
-        'loan_intent_DEBTCONSOLIDATION', 'loan_intent_HOMEIMPROVEMENT', 
-        'previous_loan_defaults_on_file'
+        'credit_score', 'education_level', 'person_gender_female',
+        'person_gender_male', 'person_home_ownership_MORTGAGE',
+        'person_home_ownership_OTHER', 'person_home_ownership_OWN',
+        'person_home_ownership_RENT', 'loan_intent_DEBTCONSOLIDATION',
+        'loan_intent_EDUCATION', 'loan_intent_HOMEIMPROVEMENT',
+        'loan_intent_MEDICAL', 'loan_intent_PERSONAL', 'loan_intent_VENTURE',
+        'previous_loan_defaults_on_file_No',
+        'previous_loan_defaults_on_file_Yes'
     ]
+
+    # Drop the original categorical columns and select only expected columns
+    df_final = df.drop(['person_gender', 'person_home_ownership', 'loan_intent', 'previous_loan_defaults'], axis=1)
     
+    # Ensure all expected columns exist
     for col in expected_columns:
-        if col not in df.columns:
-            df[col] = 0
+        if col not in df_final.columns:
+            df_final[col] = 0
     
-    # Ensure columns are in correct order
-    df = df[expected_columns]
-    
-    return df
+    # Return only the columns needed by the model in the exact order
+    return df_final[expected_columns]
 
 def make_prediction(features):
     """
@@ -197,6 +201,8 @@ def make_prediction(features):
         return prediction
     except Exception as e:
         st.error(f"Error making prediction: {e}")
+        st.error(f"Features shape: {processed_features.shape}")
+        st.error(f"Features columns: {processed_features.columns.tolist()}")
         return None
 
 def show_info():
