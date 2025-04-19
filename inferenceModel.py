@@ -110,6 +110,9 @@ def main():
         
         features['loan_intent'] = st.selectbox("Loan Intent", 
                                             ['EDUCATION', 'MEDICAL', 'VENTURE', 'PERSONAL', 'DEBTCONSOLIDATION', 'HOMEIMPROVEMENT'])
+        
+        # Add previous defaults input
+        features['previous_loan_defaults_on_file'] = st.radio("Previous Loan Defaults", ['No', 'Yes'])
 
     # Button to make prediction
     if st.button('Predict Loan Approval'):
@@ -151,11 +154,16 @@ def preprocess_input(features_dict):
     # Convert to DataFrame for easier manipulation
     df = pd.DataFrame([features_dict])
     
+    # Convert previous defaults to binary
+    df['previous_loan_defaults_on_file'] = df['previous_loan_defaults_on_file'].map({'Yes': 1, 'No': 0})
+    
     # Create one-hot encodings for categorical variables
-    categorical_columns = ['person_gender', 'person_education', 'person_home_ownership', 'loan_intent']
+    categorical_columns = ['person_gender', 'person_education', 'person_home_ownership', 
+                          'loan_intent', 'previous_loan_defaults_on_file']
     df_encoded = pd.get_dummies(df, columns=categorical_columns, drop_first=False)
     
     # Add any missing columns that the model expects
+    # IMPORTANT: Replace with your model's actual expected columns
     expected_columns = [
         'person_age', 'person_income', 'person_emp_exp', 'loan_amnt',
         'loan_int_rate', 'loan_percent_income', 'cb_person_cred_hist_length',
@@ -166,7 +174,8 @@ def preprocess_input(features_dict):
         'person_home_ownership_OTHER', 'person_home_ownership_OWN',
         'person_home_ownership_RENT', 'loan_intent_DEBTCONSOLIDATION',
         'loan_intent_EDUCATION', 'loan_intent_HOMEIMPROVEMENT',
-        'loan_intent_MEDICAL', 'loan_intent_PERSONAL', 'loan_intent_VENTURE'
+        'loan_intent_MEDICAL', 'loan_intent_PERSONAL', 'loan_intent_VENTURE',
+        'previous_loan_defaults_on_file_0', 'previous_loan_defaults_on_file_1'
     ]
     
     for col in expected_columns:
@@ -204,7 +213,7 @@ def show_info():
     st.sidebar.header("Key Features")
     st.sidebar.markdown("""
     - **Personal**: Age, Income, Gender, Education, Employment Experience, Home Ownership
-    - **Credit**: Credit Score, Credit History Length
+    - **Credit**: Credit Score, Credit History Length, Previous Defaults
     - **Loan**: Amount, Interest Rate, Purpose, Percent of Income
     """)
 
