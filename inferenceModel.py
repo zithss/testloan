@@ -103,8 +103,7 @@ def collect_user_input():
         features['loan_intent'] = st.selectbox("Loan Intent", 
                                             ['EDUCATION', 'MEDICAL', 'VENTURE', 'PERSONAL', 'DEBTCONSOLIDATION', 'HOMEIMPROVEMENT'])
         
-        previous_defaults = st.radio("Previous Loan Defaults", ['No', 'Yes'])
-        features['previous_loan_defaults'] = previous_defaults
+        features['previous_loan_defaults_on_file'] = st.radio("Previous Loan Defaults", ['No', 'Yes'])
         
     return features
 
@@ -112,21 +111,18 @@ def collect_user_input():
 def preprocess_input(features_dict):
     df = pd.DataFrame([features_dict])
     
-    # Create one-hot encoded columns
-    df['person_gender_female'] = (df['person_gender'] == 'female').astype(int)
-    df['person_gender_male'] = (df['person_gender'] == 'male').astype(int)
+    # Extract and rename any special columns before one-hot encoding
+    education_level = df['education_level']
     
-    for category in ['MORTGAGE', 'OTHER', 'OWN', 'RENT']:
-        df[f'person_home_ownership_{category}'] = (df['person_home_ownership'] == category).astype(int)
-        
-    for category in ['DEBTCONSOLIDATION', 'EDUCATION', 'HOMEIMPROVEMENT', 'MEDICAL', 'PERSONAL', 'VENTURE']:
-        df[f'loan_intent_{category}'] = (df['loan_intent'] == category).astype(int)
-        
-    df['previous_loan_defaults_on_file_No'] = (df['previous_loan_defaults'] == 'No').astype(int)
-    df['previous_loan_defaults_on_file_Yes'] = (df['previous_loan_defaults'] == 'Yes').astype(int)
+    # Get categorical columns that need one-hot encoding
+    categorical_columns = ['person_gender', 'person_home_ownership', 'loan_intent', 'previous_loan_defaults_on_file']
     
-    # Drop original categorical columns
-    df = df.drop(['person_gender', 'person_home_ownership', 'loan_intent', 'previous_loan_defaults'], axis=1)
+    # Use get_dummies for one-hot encoding
+    df_encoded = pd.get_dummies(df)
+    
+    # Drop original categorical columns and add one-hot encoded columns
+    df = df.drop(categorical_columns, axis=1)
+    df = pd.concat([df, df_encoded], axis=1)
     
     # Expected columns in the exact order
     expected_columns = [
