@@ -12,7 +12,6 @@ st.set_page_config(
 )
 
 # Load the XGBoost model
-@st.cache_resource
 def load_model():
     with open('xgboost_model.pkl', 'rb') as file:
         model = pickle.load(file)
@@ -24,16 +23,16 @@ except Exception as e:
     st.error(f"Error loading model: {e}")
     model = None
 
-# Define numerical ranges based on your dataset statistics
+# Define numerical ranges based on dataset statistics
 FEATURE_RANGES = {
-    'person_age': (20, 144, 28),
-    'person_income': (8000, 150000, 80000),
-    'person_emp_exp': (0, 125, 5),
-    'loan_amnt': (500, 35000, 10000),
-    'loan_int_rate': (5.42, 20.00, 11.00),
-    'loan_percent_income': (0.0, 0.66, 0.14),
-    'cb_person_cred_hist_length': (2, 30, 6),
-    'credit_score': (390, 850, 630)
+    'person_age': (20, 144),
+    'person_income': (8000, 150000),
+    'person_emp_exp': (0, 125),
+    'loan_amnt': (500, 35000),
+    'loan_int_rate': (5.42, 20.00),
+    'loan_percent_income': (0.0, 0.66),
+    'cb_person_cred_hist_length': (2, 30),
+    'credit_score': (390, 850)
 }
 
 def main():
@@ -55,18 +54,18 @@ def main():
         features['person_age'] = st.slider("Age", 
                                           min_value=FEATURE_RANGES['person_age'][0], 
                                           max_value=FEATURE_RANGES['person_age'][1], 
-                                          value=FEATURE_RANGES['person_age'][2])
+                                          value=FEATURE_RANGES['person_age'][0])
         
         features['person_income'] = st.slider("Annual Income ($)", 
                                              min_value=FEATURE_RANGES['person_income'][0], 
                                              max_value=FEATURE_RANGES['person_income'][1], 
-                                             value=FEATURE_RANGES['person_income'][2],
+                                             value=FEATURE_RANGES['person_income'][0],
                                              step=1000)
         
         features['person_emp_exp'] = st.slider("Employment Experience (years)", 
                                              min_value=FEATURE_RANGES['person_emp_exp'][0], 
                                              max_value=FEATURE_RANGES['person_emp_exp'][1], 
-                                             value=FEATURE_RANGES['person_emp_exp'][2])
+                                             value=FEATURE_RANGES['person_emp_exp'][0])
         
         features['person_gender'] = st.radio("Gender", ['male', 'female'])
         
@@ -79,12 +78,12 @@ def main():
         features['cb_person_cred_hist_length'] = st.slider("Credit History Length (years)", 
                                                          min_value=FEATURE_RANGES['cb_person_cred_hist_length'][0], 
                                                          max_value=FEATURE_RANGES['cb_person_cred_hist_length'][1], 
-                                                         value=FEATURE_RANGES['cb_person_cred_hist_length'][2])
+                                                         value=FEATURE_RANGES['cb_person_cred_hist_length'][0])
         
         features['credit_score'] = st.slider("Credit Score", 
                                            min_value=FEATURE_RANGES['credit_score'][0], 
                                            max_value=FEATURE_RANGES['credit_score'][1], 
-                                           value=FEATURE_RANGES['credit_score'][2],
+                                           value=FEATURE_RANGES['credit_score'][0],
                                            step=10)
 
     with col2:
@@ -93,19 +92,19 @@ def main():
         features['loan_amnt'] = st.slider("Loan Amount ($)", 
                                         min_value=FEATURE_RANGES['loan_amnt'][0], 
                                         max_value=FEATURE_RANGES['loan_amnt'][1], 
-                                        value=FEATURE_RANGES['loan_amnt'][2],
+                                        value=FEATURE_RANGES['loan_amnt'][0],
                                         step=500)
         
         features['loan_int_rate'] = st.slider("Interest Rate (%)", 
                                            min_value=FEATURE_RANGES['loan_int_rate'][0], 
                                            max_value=FEATURE_RANGES['loan_int_rate'][1], 
-                                           value=FEATURE_RANGES['loan_int_rate'][2],
+                                           value=FEATURE_RANGES['loan_int_rate'][0],
                                            step=0.05)
         
         features['loan_percent_income'] = st.slider("Loan Percent of Income", 
                                                  min_value=FEATURE_RANGES['loan_percent_income'][0], 
                                                  max_value=FEATURE_RANGES['loan_percent_income'][1], 
-                                                 value=FEATURE_RANGES['loan_percent_income'][2],
+                                                 value=FEATURE_RANGES['loan_percent_income'][0],
                                                  step=0.01)
         
         features['loan_intent'] = st.selectbox("Loan Intent", 
