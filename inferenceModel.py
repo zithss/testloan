@@ -2,7 +2,6 @@ import streamlit as st
 import pickle
 import numpy as np
 import pandas as pd
-import xgboost as xgb
 
 # Set page configuration
 st.set_page_config(
@@ -145,7 +144,7 @@ def make_prediction(model, features):
     return prediction
 
 # Display results function
-def display_results(prediction, features):
+def display_results(prediction):
     st.markdown("## Prediction Result")
     if prediction == 1:
         st.success("**Loan Status: APPROVED**")
