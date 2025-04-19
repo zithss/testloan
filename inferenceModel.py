@@ -213,6 +213,24 @@ def main():
         # Preprocess the input
         processed_features = preprocess_input(features)
         
+        # Display processed features
+        st.subheader("Features Used for Prediction")
+        st.write("The following features were used for the prediction:")
+        
+        # Create a two-column display of feature values
+        feature_cols = st.columns(2)
+        
+        for i, (col, val) in enumerate(processed_features.iloc[0].items()):
+            # Format the value (round floats, etc.)
+            if isinstance(val, float):
+                formatted_val = f"{val:.4f}"
+            else:
+                formatted_val = str(val)
+                
+            # Display in alternating columns
+            with feature_cols[i % 2]:
+                st.text(f"{col}: {formatted_val}")
+        
         # Make prediction
         prediction = make_prediction(model, processed_features)
         
