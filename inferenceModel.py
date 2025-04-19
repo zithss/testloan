@@ -11,19 +11,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Load the XGBoost model
-def load_model():
-    with open('xgboost_model.pkl', 'rb') as file:
-        model = pickle.load(file)
-    return model
-
-try:
-    model = load_model()
-except Exception as e:
-    st.error(f"Error loading model: {e}")
-    model = None
-
-# Define numerical ranges based on dataset statistics
+# Constants
 FEATURE_RANGES = {
     'person_age': (20, 144),
     'person_income': (8000, 150000),
@@ -35,21 +23,23 @@ FEATURE_RANGES = {
     'credit_score': (390, 850)
 }
 
-# Define the exact education mapping used during training
 EDUCATION_ORDER = {'High School': 1, 'Associate': 2, 'Bachelor': 3, 'Master': 4, 'Doctorate': 5}
 
-def main():
-    st.title('✅ Loan Approval Prediction')
-    st.write("""
-    This application predicts whether a loan will be approved based on various applicant characteristics.
-    Fill in the information below to get a prediction.
-    """)
-    
-    # Create columns for better layout
-    col1, col2 = st.columns(2)
-    
-    # Store all input features
+# Model loading
+def load_model():
+    try:
+        with open('xgboost_model.pkl', 'rb') as file:
+            model = pickle.load(file)
+        return model
+    except Exception as e:
+        st.error(f"Error loading model: {e}")
+        return None
+
+# Input collection from UI
+def collect_user_input():
     features = {}
+    
+    col1, col2 = st.columns(2)
     
     with col1:
         st.subheader("Personal Information")
@@ -70,12 +60,9 @@ def main():
                                              max_value=FEATURE_RANGES['person_emp_exp'][1], 
                                              value=FEATURE_RANGES['person_emp_exp'][0])
         
-        # Gender as categorical for one-hot encoding
         features['person_gender'] = st.radio("Gender", ['female', 'male'])
         
-        # Education directly mapped to education_level numeric value
-        education = st.selectbox("Education", 
-                               list(EDUCATION_ORDER.keys()))
+        education = st.selectbox("Education", list(EDUCATION_ORDER.keys()))
         features['education_level'] = EDUCATION_ORDER[education]
         
         features['person_home_ownership'] = st.selectbox("Home Ownership", 
@@ -116,68 +103,32 @@ def main():
         features['loan_intent'] = st.selectbox("Loan Intent", 
                                             ['EDUCATION', 'MEDICAL', 'VENTURE', 'PERSONAL', 'DEBTCONSOLIDATION', 'HOMEIMPROVEMENT'])
         
-        # Previous defaults as Yes/No for one-hot encoding
-        has_defaults = st.radio("Previous Loan Defaults", ['No', 'Yes'])
-        features['previous_loan_defaults'] = has_defaults  # Will be one-hot encoded later
+        previous_defaults = st.radio("Previous Loan Defaults", ['No', 'Yes'])
+        features['previous_loan_defaults'] = previous_defaults
+        
+    return features
 
-    # Button to make prediction
-    if st.button('Predict Loan Approval'):
-        if model is not None:
-            result = make_prediction(features)
-            
-            # Display result with color
-            st.markdown("## Prediction Result")
-            if result == 1:
-                st.success("**Loan Status: APPROVED**")
-                st.write("Based on the provided information, this applicant is likely to be approved for the loan.")
-            else:
-                st.error("**Loan Status: NOT APPROVED**")
-                st.write("Based on the provided information, this applicant is unlikely to be approved for the loan.")
-                
-            # Add some explanation about key factors
-            st.markdown("### Key Decision Factors")
-            
-            # Engineering key ratios for display
-            debt_to_income = features['loan_amnt'] / features['person_income']
-            income_per_exp = features['person_income'] / (features['person_emp_exp'] + 1)
-            
-            # Show visualizations or key metrics
-            metric_col1, metric_col2, metric_col3 = st.columns(3)
-            with metric_col1:
-                st.metric("Debt-to-Income Ratio", f"{debt_to_income:.2f}")
-            with metric_col2:
-                st.metric("Income per Year of Experience", f"${income_per_exp:.2f}")
-            with metric_col3:
-                st.metric("Credit Score", features['credit_score'])
-                
-        else:
-            st.error("Model not loaded. Please check your model file.")
-
+# Preprocessing function
 def preprocess_input(features_dict):
-    """
-    Preprocess the input features to match the model's expected format exactly
-    """
-    # Convert to DataFrame for easier manipulation
     df = pd.DataFrame([features_dict])
     
-    # One-hot encode categorical variables
-    # Handle gender
+    # Create one-hot encoded columns
     df['person_gender_female'] = (df['person_gender'] == 'female').astype(int)
     df['person_gender_male'] = (df['person_gender'] == 'male').astype(int)
     
-    # Handle home ownership
     for category in ['MORTGAGE', 'OTHER', 'OWN', 'RENT']:
         df[f'person_home_ownership_{category}'] = (df['person_home_ownership'] == category).astype(int)
         
-    # Handle loan intent
     for category in ['DEBTCONSOLIDATION', 'EDUCATION', 'HOMEIMPROVEMENT', 'MEDICAL', 'PERSONAL', 'VENTURE']:
         df[f'loan_intent_{category}'] = (df['loan_intent'] == category).astype(int)
         
-    # Handle previous loan defaults
     df['previous_loan_defaults_on_file_No'] = (df['previous_loan_defaults'] == 'No').astype(int)
     df['previous_loan_defaults_on_file_Yes'] = (df['previous_loan_defaults'] == 'Yes').astype(int)
     
-    # Define the exact column order expected by the model
+    # Drop original categorical columns
+    df = df.drop(['person_gender', 'person_home_ownership', 'loan_intent', 'previous_loan_defaults'], axis=1)
+    
+    # Expected columns in the exact order
     expected_columns = [
         'person_age', 'person_income', 'person_emp_exp', 'loan_amnt',
         'loan_int_rate', 'loan_percent_income', 'cb_person_cred_hist_length',
@@ -190,35 +141,54 @@ def preprocess_input(features_dict):
         'previous_loan_defaults_on_file_No',
         'previous_loan_defaults_on_file_Yes'
     ]
-
-    # Drop the original categorical columns and select only expected columns
-    df_final = df.drop(['person_gender', 'person_home_ownership', 'loan_intent', 'previous_loan_defaults'], axis=1)
     
     # Ensure all expected columns exist
     for col in expected_columns:
-        if col not in df_final.columns:
-            df_final[col] = 0
+        if col not in df.columns:
+            df[col] = 0
     
-    # Return only the columns needed by the model in the exact order
-    return df_final[expected_columns]
+    return df[expected_columns]
 
-def make_prediction(features):
-    """
-    Use the loaded model to make a prediction
-    """
-    # Preprocess the features
-    processed_features = preprocess_input(features)
-    
-    # Make prediction
+# Prediction function
+def make_prediction(model, features):
+    if model is None:
+        st.error("Model not loaded. Please check your model file.")
+        return None
+        
     try:
-        prediction = model.predict(processed_features)[0]
+        prediction = model.predict(features)[0]
         return prediction
     except Exception as e:
         st.error(f"Error making prediction: {e}")
-        st.error(f"Features shape: {processed_features.shape}")
-        st.error(f"Features columns: {processed_features.columns.tolist()}")
+        st.error(f"Features shape: {features.shape}")
+        st.error(f"Features columns: {features.columns.tolist()}")
         return None
 
+# Display results function
+def display_results(prediction, features):
+    st.markdown("## Prediction Result")
+    if prediction == 1:
+        st.success("**Loan Status: APPROVED**")
+        st.write("Based on the provided information, this applicant is likely to be approved for the loan.")
+    else:
+        st.error("**Loan Status: NOT APPROVED**")
+        st.write("Based on the provided information, this applicant is unlikely to be approved for the loan.")
+    
+    # Show key decision factors
+    st.markdown("### Key Decision Factors")
+    
+    debt_to_income = features['loan_amnt'] / features['person_income']
+    income_per_exp = features['person_income'] / (features['person_emp_exp'] + 1)
+    
+    metric_col1, metric_col2, metric_col3 = st.columns(3)
+    with metric_col1:
+        st.metric("Debt-to-Income Ratio", f"{debt_to_income:.2f}")
+    with metric_col2:
+        st.metric("Income per Year of Experience", f"${income_per_exp:.2f}")
+    with metric_col3:
+        st.metric("Credit Score", features['credit_score'])
+
+# Display sidebar information
 def show_info():
     st.sidebar.header("About")
     st.sidebar.info("""
@@ -233,6 +203,32 @@ def show_info():
     - **Credit**: Credit Score, Credit History Length, Previous Defaults
     - **Loan**: Amount, Interest Rate, Purpose, Percent of Income
     """)
+
+# Main application
+def main():
+    st.title('✅ Loan Approval Prediction')
+    st.write("""
+    This application predicts whether a loan will be approved based on various applicant characteristics.
+    Fill in the information below to get a prediction.
+    """)
+    
+    # Load model once when app starts
+    model = load_model()
+    
+    # Collect user inputs
+    features = collect_user_input()
+    
+    # Make prediction when button is clicked
+    if st.button('Predict Loan Approval'):
+        # Preprocess the input
+        processed_features = preprocess_input(features)
+        
+        # Make prediction
+        prediction = make_prediction(model, processed_features)
+        
+        # Display results
+        if prediction is not None:
+            display_results(prediction, features)
 
 if __name__ == '__main__':
     main()
