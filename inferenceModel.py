@@ -1,8 +1,6 @@
 import streamlit as st
 import pickle
-import numpy as np
 import pandas as pd
-import xgboost as xgb
 
 # Set page configuration
 st.set_page_config(
@@ -24,7 +22,7 @@ except Exception as e:
     st.error(f"Error loading model: {e}")
     model = None
 
-# Define numerical ranges based on your dataset statistics
+# Define numerical ranges
 FEATURE_RANGES = {
     'person_age': (20, 144, 28),
     'person_income': (8000, 150000, 80000),
@@ -38,140 +36,60 @@ FEATURE_RANGES = {
 
 def main():
     st.title('✅ Loan Approval Prediction')
-    st.write("""
-    This application predicts whether a loan will be approved based on various applicant characteristics.
-    Fill in the information below to get a prediction.
-    """)
+    st.write("This application predicts loan approval based on applicant characteristics.")
     
-    # Create columns for better layout
     col1, col2 = st.columns(2)
-    
-    # Store all input features
     features = {}
     
     with col1:
         st.subheader("Personal Information")
-        
-        features['person_age'] = st.slider("Age", 
-                                          min_value=FEATURE_RANGES['person_age'][0], 
-                                          max_value=FEATURE_RANGES['person_age'][1], 
-                                          value=FEATURE_RANGES['person_age'][2])
-        
-        features['person_income'] = st.slider("Annual Income ($)", 
-                                             min_value=FEATURE_RANGES['person_income'][0], 
-                                             max_value=FEATURE_RANGES['person_income'][1], 
-                                             value=FEATURE_RANGES['person_income'][2],
-                                             step=1000)
-        
-        features['person_emp_exp'] = st.slider("Employment Experience (years)", 
-                                             min_value=FEATURE_RANGES['person_emp_exp'][0], 
-                                             max_value=FEATURE_RANGES['person_emp_exp'][1], 
-                                             value=FEATURE_RANGES['person_emp_exp'][2])
-        
+        features['person_age'] = st.slider("Age", *FEATURE_RANGES['person_age'])
+        features['person_income'] = st.slider("Annual Income ($)", *FEATURE_RANGES['person_income'], step=1000)
+        features['person_emp_exp'] = st.slider("Employment Experience (years)", *FEATURE_RANGES['person_emp_exp'])
         features['person_gender'] = st.radio("Gender", ['male', 'female'])
-        
-        features['person_education'] = st.selectbox("Education", 
-                                                   ['High School', 'Associate', 'Bachelor', 'Master', 'Doctorate'])
-        
-        features['person_home_ownership'] = st.selectbox("Home Ownership", 
-                                                       ['RENT', 'MORTGAGE', 'OWN', 'OTHER'])
-        
-        features['cb_person_cred_hist_length'] = st.slider("Credit History Length (years)", 
-                                                         min_value=FEATURE_RANGES['cb_person_cred_hist_length'][0], 
-                                                         max_value=FEATURE_RANGES['cb_person_cred_hist_length'][1], 
-                                                         value=FEATURE_RANGES['cb_person_cred_hist_length'][2])
-        
-        features['credit_score'] = st.slider("Credit Score", 
-                                           min_value=FEATURE_RANGES['credit_score'][0], 
-                                           max_value=FEATURE_RANGES['credit_score'][1], 
-                                           value=FEATURE_RANGES['credit_score'][2],
-                                           step=10)
+        features['person_education'] = st.selectbox("Education", ['High School', 'Associate', 'Bachelor', 'Master', 'Doctorate'])
+        features['person_home_ownership'] = st.selectbox("Home Ownership", ['RENT', 'MORTGAGE', 'OWN', 'OTHER'])
+        features['cb_person_cred_hist_length'] = st.slider("Credit History Length (years)", *FEATURE_RANGES['cb_person_cred_hist_length'])
+        features['credit_score'] = st.slider("Credit Score", *FEATURE_RANGES['credit_score'], step=10)
 
     with col2:
         st.subheader("Loan Information")
-        
-        features['loan_amnt'] = st.slider("Loan Amount ($)", 
-                                        min_value=FEATURE_RANGES['loan_amnt'][0], 
-                                        max_value=FEATURE_RANGES['loan_amnt'][1], 
-                                        value=FEATURE_RANGES['loan_amnt'][2],
-                                        step=500)
-        
-        features['loan_int_rate'] = st.slider("Interest Rate (%)", 
-                                           min_value=FEATURE_RANGES['loan_int_rate'][0], 
-                                           max_value=FEATURE_RANGES['loan_int_rate'][1], 
-                                           value=FEATURE_RANGES['loan_int_rate'][2],
-                                           step=0.05)
-        
-        features['loan_percent_income'] = st.slider("Loan Percent of Income", 
-                                                 min_value=FEATURE_RANGES['loan_percent_income'][0], 
-                                                 max_value=FEATURE_RANGES['loan_percent_income'][1], 
-                                                 value=FEATURE_RANGES['loan_percent_income'][2],
-                                                 step=0.01)
-        
-        features['loan_intent'] = st.selectbox("Loan Intent", 
-                                            ['EDUCATION', 'MEDICAL', 'VENTURE', 'PERSONAL', 'DEBTCONSOLIDATION', 'HOMEIMPROVEMENT'])
-        
-        # Add previous defaults input
-        features['previous_loan_defaults_on_file'] = st.radio("Previous Loan Defaults", ['No', 'Yes'])
+        features['loan_amnt'] = st.slider("Loan Amount ($)", *FEATURE_RANGES['loan_amnt'], step=500)
+        features['loan_int_rate'] = st.slider("Interest Rate (%)", *FEATURE_RANGES['loan_int_rate'], step=0.05)
+        features['loan_percent_income'] = st.slider("Loan Percent of Income", *FEATURE_RANGES['loan_percent_income'], step=0.01)
+        features['loan_intent'] = st.selectbox("Loan Purpose", ['EDUCATION', 'MEDICAL', 'VENTURE', 'PERSONAL', 'DEBTCONSOLIDATION', 'HOMEIMPROVEMENT'])
+        features['previous_loan_defaults_on_file'] = st.radio("Previous Defaults", ['No', 'Yes'])
 
-    # Button to make prediction
     if st.button('Predict Loan Approval'):
-        if model is not None:
-            result = make_prediction(features)
-            
-            # Display result with color
-            st.markdown("## Prediction Result")
-            if result == 1:
-                st.success("**Loan Status: APPROVED**")
-                st.write("Based on the provided information, this applicant is likely to be approved for the loan.")
-            else:
-                st.error("**Loan Status: NOT APPROVED**")
-                st.write("Based on the provided information, this applicant is unlikely to be approved for the loan.")
-                
-            # Add some explanation about key factors
-            st.markdown("### Key Decision Factors")
-            
-            # Engineering key ratios for display
-            debt_to_income = features['loan_amnt'] / features['person_income']
-            income_per_exp = features['person_income'] / (features['person_emp_exp'] + 1)
-            
-            # Show visualizations or key metrics
-            metric_col1, metric_col2, metric_col3 = st.columns(3)
-            with metric_col1:
-                st.metric("Debt-to-Income Ratio", f"{debt_to_income:.2f}")
-            with metric_col2:
-                st.metric("Income per Year of Experience", f"${income_per_exp:.2f}")
-            with metric_col3:
-                st.metric("Credit Score", features['credit_score'])
-                
+        if model:
+            try:
+                processed = preprocess_input(features)
+                prediction = model.predict(processed)[0]
+                display_result(prediction, features)
+            except Exception as e:
+                st.error(f"Prediction error: {e}")
         else:
-            st.error("Model not loaded. Please check your model file.")
+            st.error("Model not loaded")
 
-def preprocess_input(features_dict):
-    """
-    Preprocess the input features to match the model's expected format
-    """
-    # Convert to DataFrame for easier manipulation
-    df = pd.DataFrame([features_dict])
+def preprocess_input(features):
+    # Convert to DataFrame
+    df = pd.DataFrame([features])
     
-    # Convert education to ordinal encoding (matches 'education_level' in model)
-    education_mapping = {
-        'High School': 0,
-        'Associate': 1,
-        'Bachelor': 2,
-        'Master': 3,
-        'Doctorate': 4
-    }
-    df['education_level'] = df['person_education'].map(education_mapping)
+    # Handle education as ordinal feature
+    edu_map = {'High School':0, 'Associate':1, 'Bachelor':2, 'Master':3, 'Doctorate':4}
+    df['education_level'] = df['person_education'].map(edu_map)
     
-    # Convert gender to binary (1=female, 0=male)
+    # Convert gender to binary
     df['person_gender_female'] = (df['person_gender'] == 'female').astype(int)
     
-    # Create one-hot encodings for other categorical variables
-    categorical_columns = ['person_home_ownership', 'loan_intent']
-    df_encoded = pd.get_dummies(df, columns=categorical_columns, drop_first=False)
+    # Handle previous defaults
+    df['previous_loan_defaults_on_file_Yes'] = (df['previous_loan_defaults_on_file'] == 'Yes').astype(int)
+    df['previous_loan_defaults_on_file_No'] = (df['previous_loan_defaults_on_file'] == 'No').astype(int)
     
-    # Add missing columns that the model expects
+    # One-hot encode categoricals
+    df = pd.get_dummies(df, columns=['person_home_ownership', 'loan_intent'])
+    
+    # Ensure all expected columns are present
     expected_columns = [
         'person_age', 'person_income', 'person_emp_exp', 'loan_amnt',
         'loan_int_rate', 'loan_percent_income', 'cb_person_cred_hist_length',
@@ -181,47 +99,37 @@ def preprocess_input(features_dict):
         'loan_intent_DEBTCONSOLIDATION', 'loan_intent_EDUCATION',
         'loan_intent_HOMEIMPROVEMENT', 'loan_intent_MEDICAL',
         'loan_intent_PERSONAL', 'loan_intent_VENTURE',
-        'previous_loan_defaults_on_file_No', 'previous_loan_defaults_on_file_Yes'
+        'previous_loan_defaults_on_file_Yes', 'previous_loan_defaults_on_file_No'
     ]
     
-    # Add missing columns with default value 0
+    # Add missing columns with 0 values
     for col in expected_columns:
-        if col not in df_encoded.columns:
-            df_encoded[col] = 0
+        if col not in df.columns:
+            df[col] = 0
     
-    # Ensure columns are in correct order
-    df_encoded = df_encoded[expected_columns]
-    
-    return df_encoded
+    return df[expected_columns]
 
-def make_prediction(features):
-    """
-    Use the loaded model to make a prediction
-    """
-    # Preprocess the features
-    processed_features = preprocess_input(features)
+def display_result(prediction, features):
+    st.markdown("## Prediction Result")
+    if prediction == 1:
+        st.success("**Loan Status: APPROVED**")
+    else:
+        st.error("**Loan Status: NOT APPROVED**")
     
-    # Make prediction
-    try:
-        prediction = model.predict(processed_features)[0]
-        return prediction
-    except Exception as e:
-        st.error(f"Error making prediction: {e}")
-        return None
+    st.markdown("### Key Metrics")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Debt-to-Income", f"{(features['loan_amnt']/features['person_income']):.2f}")
+    with col2:
+        st.metric("Credit Score", features['credit_score'])
+    with col3:
+        st.metric("Interest Rate", f"{features['loan_int_rate']}%")
 
 def show_info():
     st.sidebar.header("About")
     st.sidebar.info("""
-    This app uses an XGBoost machine learning model to predict loan approval status based on applicant information.
-    
-    The model was trained on historical loan data with features including age, income, education level, credit history, and loan details.
-    """)
-    
-    st.sidebar.header("Key Features")
-    st.sidebar.markdown("""
-    - **Personal**: Age, Income, Gender, Education, Employment Experience, Home Ownership
-    - **Credit**: Credit Score, Credit History Length, Previous Defaults
-    - **Loan**: Amount, Interest Rate, Purpose, Percent of Income
+    This app predicts loan approvals using an XGBoost model trained on historical data.
+    Key features include credit score, income, loan details, and financial history.
     """)
 
 if __name__ == '__main__':
