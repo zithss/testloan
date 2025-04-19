@@ -141,18 +141,8 @@ def preprocess_input(features_dict):
 
 # Prediction function
 def make_prediction(model, features):
-    if model is None:
-        st.error("Model not loaded. Please check your model file.")
-        return None
-        
-    try:
-        prediction = model.predict(features)[0]
-        return prediction
-    except Exception as e:
-        st.error(f"Error making prediction: {e}")
-        st.error(f"Features shape: {features.shape}")
-        st.error(f"Features columns: {features.columns.tolist()}")
-        return None
+    prediction = model.predict(features)[0]
+    return prediction
 
 # Display results function
 def display_results(prediction, features):
@@ -163,20 +153,6 @@ def display_results(prediction, features):
     else:
         st.error("**Loan Status: NOT APPROVED**")
         st.write("Based on the provided information, this applicant is unlikely to be approved for the loan.")
-    
-    # Show key decision factors
-    st.markdown("### Key Decision Factors")
-    
-    debt_to_income = features['loan_amnt'] / features['person_income']
-    income_per_exp = features['person_income'] / (features['person_emp_exp'] + 1)
-    
-    metric_col1, metric_col2, metric_col3 = st.columns(3)
-    with metric_col1:
-        st.metric("Debt-to-Income Ratio", f"{debt_to_income:.2f}")
-    with metric_col2:
-        st.metric("Income per Year of Experience", f"${income_per_exp:.2f}")
-    with metric_col3:
-        st.metric("Credit Score", features['credit_score'])
 
 # Display sidebar information
 def show_info():
@@ -212,24 +188,6 @@ def main():
     if st.button('Predict Loan Approval'):
         # Preprocess the input
         processed_features = preprocess_input(features)
-        
-        # Display processed features
-        st.subheader("Features Used for Prediction")
-        st.write("The following features were used for the prediction:")
-        
-        # Create a two-column display of feature values
-        feature_cols = st.columns(2)
-        
-        for i, (col, val) in enumerate(processed_features.iloc[0].items()):
-            # Format the value (round floats, etc.)
-            if isinstance(val, float):
-                formatted_val = f"{val:.4f}"
-            else:
-                formatted_val = str(val)
-                
-            # Display in alternating columns
-            with feature_cols[i % 2]:
-                st.text(f"{col}: {formatted_val}")
         
         # Make prediction
         prediction = make_prediction(model, processed_features)
